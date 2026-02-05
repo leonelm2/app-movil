@@ -1,94 +1,57 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiRequest } from './api';
 import { obtenerEquipos } from './equipos';
-
-const CHAMPIONSHIPS_KEY = 'CAMPEONATOS';
-const DISCIPLINES_KEY = 'DISCIPLINAS';
 
 // ==================== DISCIPLINAS ====================
 export async function obtenerDisciplinas() {
-  const json = await AsyncStorage.getItem(DISCIPLINES_KEY);
-  let lista = json ? JSON.parse(json) : [];
-  
-  // Inicializar con disciplinas de ejemplo si no hay ninguna
-  if (lista.length === 0) {
-    const ejemplos = [
-      { id: 'd1', nombre: 'Fútbol', icono: '⚽' },
-      { id: 'd2', nombre: 'Voleibol', icono: '🏐' },
-      { id: 'd3', nombre: 'Básquetbol', icono: '🏀' }
-    ];
-    await AsyncStorage.setItem(DISCIPLINES_KEY, JSON.stringify(ejemplos));
-    lista = ejemplos;
-  }
-  return lista;
+  return apiRequest('/disciplinas');
 }
 
 export async function crearDisciplina(nombre, icono = '⚽') {
-  const lista = await obtenerDisciplinas();
-  const nuevaD = { id: Date.now().toString(), nombre, icono };
-  lista.push(nuevaD);
-  await AsyncStorage.setItem(DISCIPLINES_KEY, JSON.stringify(lista));
-  return nuevaD;
+  return apiRequest('/disciplinas', {
+    method: 'POST',
+    body: JSON.stringify({ nombre, icono })
+  });
 }
 
 export async function eliminarDisciplina(id) {
-  const lista = await obtenerDisciplinas();
-  const filtrada = lista.filter(x => x.id !== id);
-  await AsyncStorage.setItem(DISCIPLINES_KEY, JSON.stringify(filtrada));
+  await apiRequest(`/disciplinas/${id}`, { method: 'DELETE' });
 }
 
 // ==================== CAMPEONATOS ====================
 export async function obtenerCampeonatos() {
-  const json = await AsyncStorage.getItem(CHAMPIONSHIPS_KEY);
-  let lista = json ? JSON.parse(json) : [];
-  if (lista.length === 0) {
-    lista = buildDemoCampeonatos();
-    await AsyncStorage.setItem(CHAMPIONSHIPS_KEY, JSON.stringify(lista));
-  }
-  return lista;
+  return apiRequest('/campeonatos');
 }
 
 export async function crearCampeonato({ nombre, disciplinaId, fechaInicio, fechaFin, descripcion = '' }) {
-  const lista = await obtenerCampeonatos();
-  const nuevoC = {
-    id: Date.now().toString(),
-    nombre,
-    disciplinaId,
-    fechaInicio,
-    fechaFin,
-    descripcion,
-    estado: 'En preparación', // En preparación, En curso, Finalizado
-    equipos: [],
-    fases: {
-      grupos: null,
-      eliminatorias: null
-    },
-    creadoEn: new Date().toISOString()
-  };
-  lista.push(nuevoC);
-  await AsyncStorage.setItem(CHAMPIONSHIPS_KEY, JSON.stringify(lista));
-  return nuevoC;
+  return apiRequest('/campeonatos', {
+    method: 'POST',
+    body: JSON.stringify({
+      nombre,
+      disciplinaId,
+      fechaInicio,
+      fechaFin,
+      descripcion,
+      estado: 'En preparación',
+      equipos: [],
+      fases: { grupos: null, eliminatorias: null },
+      creadoEn: new Date().toISOString()
+    })
+  });
 }
 
 export async function actualizarCampeonato(id, datos) {
-  const lista = await obtenerCampeonatos();
-  const idx = lista.findIndex(x => x.id === id);
-  if (idx !== -1) {
-    lista[idx] = { ...lista[idx], ...datos };
-    await AsyncStorage.setItem(CHAMPIONSHIPS_KEY, JSON.stringify(lista));
-    return lista[idx];
-  }
-  throw new Error('Campeonato no encontrado');
+  return apiRequest(`/campeonatos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(datos)
+  });
 }
 
 export async function eliminarCampeonato(id) {
-  const lista = await obtenerCampeonatos();
-  const filtrada = lista.filter(x => x.id !== id);
-  await AsyncStorage.setItem(CHAMPIONSHIPS_KEY, JSON.stringify(filtrada));
+  await apiRequest(`/campeonatos/${id}`, { method: 'DELETE' });
 }
 
 export async function obtenerCampeonatoId(id) {
-  const lista = await obtenerCampeonatos();
-  const encontrado = lista.find(x => x.id === id);
+  const encontrado = await apiRequest(`/campeonatos/${id}`);
   if (!encontrado) return undefined;
   return await sincronizarEquiposConClubes(encontrado);
 }

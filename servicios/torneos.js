@@ -1,181 +1,29 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const TORNEOS_KEY = 'TORNEOS';
-const JUGADORES_KEY = 'JUGADORES';
+import { apiRequest } from './api';
 
 export async function obtenerTorneos() {
-  const json = await AsyncStorage.getItem(TORNEOS_KEY);
-  let lista = json ? JSON.parse(json) : [];
-  const seed = buildSeedData();
-  const hasT1 = lista.some(t => t.id === seed.torneoUno.id);
-  const hasT2 = lista.some(t => t.id === seed.torneoDos.id);
-  if (!hasT1 || !hasT2) {
-    const next = [...lista];
-    if (!hasT1) next.push(seed.torneoUno);
-    if (!hasT2) next.push(seed.torneoDos);
-    lista = next;
-    await AsyncStorage.setItem(TORNEOS_KEY, JSON.stringify(lista));
-  }
-
-  const playersJson = await AsyncStorage.getItem(JUGADORES_KEY);
-  if (!playersJson) {
-    await AsyncStorage.setItem(JUGADORES_KEY, JSON.stringify(seed.jugadoresSeed));
-  } else {
-    const currentPlayers = JSON.parse(playersJson);
-    const nextPlayers = { ...currentPlayers };
-    nextPlayers.t1 = normalizarPlayers(currentPlayers.t1, seed.jugadoresSeed.t1);
-    nextPlayers.t2 = normalizarPlayers(currentPlayers.t2, seed.jugadoresSeed.t2);
-    await AsyncStorage.setItem(JUGADORES_KEY, JSON.stringify(nextPlayers));
-  }
-  return lista;
+  return apiRequest('/torneos');
 }
 
 export async function crearTorneo(t) {
-  const lista = await obtenerTorneos();
-  const nuevoT = { id: Date.now().toString(), equiposDetalle: [], partidos: [], ...t };
-  lista.push(nuevoT);
-  await AsyncStorage.setItem(TORNEOS_KEY, JSON.stringify(lista));
-  return nuevoT;
+  return apiRequest('/torneos', {
+    method: 'POST',
+    body: JSON.stringify(t)
+  });
 }
 
 export async function actualizarTorneo(id, datos) {
-  const lista = await obtenerTorneos();
-  const idx = lista.findIndex(x => x.id === id);
-  if (idx !== -1) {
-    lista[idx] = { ...lista[idx], ...datos };
-    await AsyncStorage.setItem(TORNEOS_KEY, JSON.stringify(lista));
-    return lista[idx];
-  }
-  throw new Error('Torneo no encontrado');
+  return apiRequest(`/torneos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(datos)
+  });
 }
 
 export async function eliminarTorneo(id) {
-  const lista = await obtenerTorneos();
-  const filtrada = lista.filter(x => x.id !== id);
-  await AsyncStorage.setItem(TORNEOS_KEY, JSON.stringify(filtrada));
+  await apiRequest(`/torneos/${id}`, { method: 'DELETE' });
 }
 
 export async function obtenerTorneoId(id) {
-  const lista = await obtenerTorneos();
-  return lista.find(x => x.id === id);
-}
-
-function generarFixture(equipos, resultadosIniciales = []) {
-  const partidos = [];
-  for (let i = 0; i < equipos.length; i++) {
-    for (let j = i + 1; j < equipos.length; j++) {
-      partidos.push({
-        id: `m-${equipos[i].id}-${equipos[j].id}`,
-        localId: equipos[i].id,
-        visitanteId: equipos[j].id,
-        golesLocal: null,
-        golesVisitante: null,
-        jugado: false
-      });
-    }
-  }
-
-  resultadosIniciales.forEach(resultado => {
-    const match = partidos.find(p => p.localId === resultado.localId && p.visitanteId === resultado.visitanteId);
-    if (match) {
-      match.golesLocal = resultado.golesLocal;
-      match.golesVisitante = resultado.golesVisitante;
-      match.jugado = true;
-    }
-  });
-
-  return partidos;
-}
-
-const plantillaBase = [
-  { nombre: 'Lucas Fernandez', posicion: 'Portero' },
-  { nombre: 'Sergio Molina', posicion: 'Portero' },
-  { nombre: 'Nicolas Gomez', posicion: 'Defensa' },
-  { nombre: 'Matias Vega', posicion: 'Defensa' },
-  { nombre: 'Bruno Diaz', posicion: 'Defensa' },
-  { nombre: 'Pablo Rojas', posicion: 'Defensa' },
-  { nombre: 'Franco Silva', posicion: 'Mediocampista' },
-  { nombre: 'Agustin Castro', posicion: 'Mediocampista' },
-  { nombre: 'Diego Torres', posicion: 'Mediocampista' },
-  { nombre: 'Julian Perez', posicion: 'Delantero' },
-  { nombre: 'Emanuel Lopez', posicion: 'Delantero' }
-];
-
-function buildJugadoresEquipo(prefijoId, equipoNombre) {
-  return plantillaBase.map((jugador, index) => ({
-    id: `${prefijoId}-p${index + 1}`,
-    nombre: jugador.nombre,
-    edad: 19 + index,
-    posicion: jugador.posicion,
-    equipo: equipoNombre
-  }));
-}
-
-function normalizarPlayers(actuales = [], base = []) {
-  if (!Array.isArray(actuales) || actuales.length !== base.length) return base;
-  return actuales;
-}
-
-function buildSeedData() {
-  const torneoUnoEquipos = [
-    { id: 't1-e1', nombre: 'Club San Juan Norte', localidad: 'Capital' },
-    { id: 't1-e2', nombre: 'Club Rawson', localidad: 'Rawson' },
-    { id: 't1-e3', nombre: 'Club Rivadavia', localidad: 'Rivadavia' },
-    { id: 't1-e4', nombre: 'Club Chimbas', localidad: 'Chimbas' }
-  ];
-
-  const torneoDosEquipos = [
-    { id: 't2-e1', nombre: 'Club Pocito', localidad: 'Pocito' },
-    { id: 't2-e2', nombre: 'Club Caucete', localidad: 'Caucete' },
-    { id: 't2-e3', nombre: 'Club Albardon', localidad: 'Albardon' },
-    { id: 't2-e4', nombre: 'Club Zonda', localidad: 'Zonda' }
-  ];
-
-  const torneoUno = {
-    id: 't1',
-    nombre: 'Liga Sanjuanina Apertura',
-    equipos: torneoUnoEquipos.length,
-    fecha: '2026-03-15',
-    disciplina: 'futbol',
-    estado: 'En curso',
-    equiposDetalle: torneoUnoEquipos,
-    partidos: generarFixture(torneoUnoEquipos, [
-      { localId: 't1-e1', visitanteId: 't1-e2', golesLocal: 2, golesVisitante: 1 },
-      { localId: 't1-e3', visitanteId: 't1-e4', golesLocal: 0, golesVisitante: 0 },
-      { localId: 't1-e2', visitanteId: 't1-e3', golesLocal: 1, golesVisitante: 3 }
-    ])
-  };
-
-  const torneoDos = {
-    id: 't2',
-    nombre: 'Copa Valle de Tulum',
-    equipos: torneoDosEquipos.length,
-    fecha: '2026-04-01',
-    disciplina: 'futbol',
-    estado: 'En curso',
-    equiposDetalle: torneoDosEquipos,
-    partidos: generarFixture(torneoDosEquipos, [
-      { localId: 't2-e1', visitanteId: 't2-e2', golesLocal: 1, golesVisitante: 1 },
-      { localId: 't2-e3', visitanteId: 't2-e4', golesLocal: 2, golesVisitante: 0 }
-    ])
-  };
-
-  const jugadoresSeed = {
-    t1: [
-      ...buildJugadoresEquipo('t1-e1', 'Club San Juan Norte'),
-      ...buildJugadoresEquipo('t1-e2', 'Club Rawson'),
-      ...buildJugadoresEquipo('t1-e3', 'Club Rivadavia'),
-      ...buildJugadoresEquipo('t1-e4', 'Club Chimbas')
-    ],
-    t2: [
-      ...buildJugadoresEquipo('t2-e1', 'Club Pocito'),
-      ...buildJugadoresEquipo('t2-e2', 'Club Caucete'),
-      ...buildJugadoresEquipo('t2-e3', 'Club Albardon'),
-      ...buildJugadoresEquipo('t2-e4', 'Club Zonda')
-    ]
-  };
-
-  return { torneoUno, torneoDos, jugadoresSeed };
+  return apiRequest(`/torneos/${id}`);
 }
 
 export async function obtenerTablaTorneo(idTorneo) {
@@ -238,45 +86,25 @@ export async function obtenerTablaTorneo(idTorneo) {
 }
 
 export async function registrarResultado(idTorneo, partidoId, { golesLocal, golesVisitante }) {
-  const lista = await obtenerTorneos();
-  const idx = lista.findIndex(x => x.id === idTorneo);
-  if (idx === -1) throw new Error('Torneo no encontrado');
-
-  const torneo = lista[idx];
-  const partidos = torneo.partidos || [];
-  const match = partidos.find(p => p.id === partidoId);
-  if (!match) throw new Error('Partido no encontrado');
-
-  match.golesLocal = parseInt(golesLocal, 10);
-  match.golesVisitante = parseInt(golesVisitante, 10);
-  match.jugado = true;
-
-  lista[idx] = { ...torneo, partidos };
-  await AsyncStorage.setItem(TORNEOS_KEY, JSON.stringify(lista));
-  return match;
+  return apiRequest(`/torneos/${idTorneo}/partidos/${partidoId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ golesLocal, golesVisitante })
+  });
 }
 
 export async function forzarDatosDemo() {
-  const seed = buildSeedData();
-  const lista = [seed.torneoUno, seed.torneoDos];
-  await AsyncStorage.setItem(TORNEOS_KEY, JSON.stringify(lista));
-  await AsyncStorage.setItem(JUGADORES_KEY, JSON.stringify(seed.jugadoresSeed));
-  return lista;
+  return apiRequest('/torneos/seed', { method: 'POST' });
 }
 
 export async function obtenerJugadores(idTorneo) {
-  const json = await AsyncStorage.getItem(JUGADORES_KEY);
-  const obj = json ? JSON.parse(json) : {};
-  return obj[idTorneo] || [];
+  return apiRequest(`/torneos/${idTorneo}/jugadores`);
 }
 
 export async function agregarJugador(idTorneo, jugador) {
-  const json = await AsyncStorage.getItem(JUGADORES_KEY);
-  const obj = json ? JSON.parse(json) : {};
-  if (!obj[idTorneo]) obj[idTorneo] = [];
-  obj[idTorneo].push({ id: Date.now().toString(), ...jugador });
-  await AsyncStorage.setItem(JUGADORES_KEY, JSON.stringify(obj));
-  return obj[idTorneo];
+  return apiRequest(`/torneos/${idTorneo}/jugadores`, {
+    method: 'POST',
+    body: JSON.stringify(jugador)
+  });
 }
 
 

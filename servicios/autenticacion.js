@@ -1,11 +1,11 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { esCorreoValido, normalizarCorreo, limpiarTexto } from '../utilidades/validaciones';
+import { apiRequest } from './api';
 
 export const AuthContext = createContext();
 
 // Claves para almacenamiento
-const USUARIOS_KEY = 'USUARIOS';
 const SESION_KEY = 'SESION';
 
 // Roles disponibles
@@ -27,20 +27,6 @@ function hashPassword(texto) {
   return `${HASH_PREFIX}${(hash >>> 0).toString(16)}`;
 }
 
-function esHash(valor) {
-  return typeof valor === 'string' && valor.startsWith(HASH_PREFIX);
-}
-
-function verificarPassword(guardada, candidata) {
-  if (esHash(guardada)) return guardada === hashPassword(candidata);
-  return guardada === candidata;
-}
-
-function normalizarPassword(guardada, candidata) {
-  if (esHash(guardada)) return guardada;
-  if (guardada === candidata) return hashPassword(candidata);
-  return guardada;
-}
 
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
@@ -60,9 +46,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function registrar({ nombre, correo, contraseña, rol = ROLES.ENTRENADOR }) {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-
     const correoNormalizado = normalizarCorreo(correo);
     if (!esCorreoValido(correoNormalizado)) {
       throw new Error('Correo inválido');
@@ -74,49 +57,32 @@ export function AuthProvider({ children }) {
     if (!nombreLimpio) {
       throw new Error('Completa todos los campos');
     }
-    
-    if (usuarios.find(u => u.correo.toLowerCase() === correoNormalizado)) {
-      throw new Error('El correo ya está registrado');
-    }
 
-    // El primer usuario es automáticamente administrador
-    const esPrimerUsuario = usuarios.length === 0;
-    const nuevoUsuario = { 
-      id: Date.now().toString(), 
-      nombre: nombreLimpio, 
-      correo: correoNormalizado, 
-      contraseña: hashPassword(contraseña),
-      rol: esPrimerUsuario ? ROLES.ADMIN : rol,
-      activo: true,
-      creadoEn: new Date().toISOString()
-    };
-    
-    usuarios.push(nuevoUsuario);
-    await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+    const nuevoUsuario = await apiRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: nombreLimpio,
+        correo: correoNormalizado,
+        contrasena: hashPassword(contraseña),
+        rol
+      })
+    });
+
     await AsyncStorage.setItem(SESION_KEY, JSON.stringify(nuevoUsuario));
     setUsuario(nuevoUsuario);
     return nuevoUsuario;
   }
 
   async function iniciarSesion({ correo, contraseña }) {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
     const correoNormalizado = normalizarCorreo(correo);
-    const encontrado = usuarios.find(u => u.correo.toLowerCase() === correoNormalizado);
-    
-    if (!encontrado) throw new Error('El usuario no existe');
-    if (!verificarPassword(encontrado.contraseña, contraseña)) throw new Error('Contraseña incorrecta');
-    if (!encontrado.activo) throw new Error('Usuario desactivado');
+    const encontrado = await apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        correo: correoNormalizado,
+        contrasena: hashPassword(contraseña)
+      })
+    });
 
-    const passwordActualizada = normalizarPassword(encontrado.contraseña, contraseña);
-    if (passwordActualizada !== encontrado.contraseña) {
-      const usuariosActualizados = usuarios.map(u =>
-        u.id === encontrado.id ? { ...u, contraseña: passwordActualizada } : u
-      );
-      await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuariosActualizados));
-      encontrado.contraseña = passwordActualizada;
-    }
-    
     await AsyncStorage.setItem(SESION_KEY, JSON.stringify(encontrado));
     setUsuario(encontrado);
     return encontrado;
@@ -128,44 +94,36 @@ export function AuthProvider({ children }) {
   }
 
   async function cambiarContraseña({ correo, contraseñaActual, contraseñaNueva }) {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    const idx = usuarios.findIndex(u => u.correo === correo);
-    if (idx === -1) throw new Error('Contraseña actual incorrecta');
-    if (!verificarPassword(usuarios[idx].contraseña, contraseñaActual)) {
-      throw new Error('Contraseña actual incorrecta');
-    }
     if (!contraseñaNueva || contraseñaNueva.length < 6) {
       throw new Error('La contraseña debe tener al menos 6 caracteres');
     }
-    
-    usuarios[idx].contraseña = hashPassword(contraseñaNueva);
-    await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+
+    const actualizado = await apiRequest('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        correo,
+        contrasenaActual: hashPassword(contraseñaActual),
+        contrasenaNueva: hashPassword(contraseñaNueva)
+      })
+    });
+
     const sesion = JSON.parse(await AsyncStorage.getItem(SESION_KEY));
-    
     if (sesion && sesion.correo === correo) {
-      sesion.contraseña = usuarios[idx].contraseña;
-      await AsyncStorage.setItem(SESION_KEY, JSON.stringify(sesion));
-      setUsuario(sesion);
+      await AsyncStorage.setItem(SESION_KEY, JSON.stringify(actualizado));
+      setUsuario(actualizado);
     }
     return true;
   }
 
   // Funciones administrativas
   async function obtenerTodosLosUsuarios() {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    return usuariosJson ? JSON.parse(usuariosJson) : [];
+    return apiRequest('/users');
   }
 
   async function crearUsuario({ nombre, correo, contraseña, rol }) {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
     const correoNormalizado = normalizarCorreo(correo);
     if (!esCorreoValido(correoNormalizado)) {
       throw new Error('Correo inválido');
-    }
-    if (usuarios.find(u => u.correo === correoNormalizado)) {
-      throw new Error('El correo ya está registrado');
     }
     const nombreLimpio = limpiarTexto(nombre);
     if (!nombreLimpio) {
@@ -175,27 +133,19 @@ export function AuthProvider({ children }) {
       throw new Error('La contraseña debe tener al menos 6 caracteres');
     }
 
-    const nuevoUsuario = { 
-      id: Date.now().toString(), 
-      nombre: nombreLimpio, 
-      correo: correoNormalizado, 
-      contraseña: hashPassword(contraseña),
-      rol: rol || ROLES.ENTRENADOR,
-      activo: true,
-      creadoEn: new Date().toISOString()
-    };
-    
-    usuarios.push(nuevoUsuario);
-    await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
-    return nuevoUsuario;
+    return apiRequest('/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: nombreLimpio,
+        correo: correoNormalizado,
+        contrasena: hashPassword(contraseña),
+        rol: rol || ROLES.ENTRENADOR,
+        activo: true
+      })
+    });
   }
 
   async function actualizarUsuario(idUsuario, { nombre, correo, rol, activo }) {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    const idx = usuarios.findIndex(u => u.id === idUsuario);
-    
-    if (idx === -1) throw new Error('Usuario no encontrado');
     const correoNormalizado = normalizarCorreo(correo);
     if (!esCorreoValido(correoNormalizado)) {
       throw new Error('Correo inválido');
@@ -204,23 +154,26 @@ export function AuthProvider({ children }) {
     if (!nombreLimpio) {
       throw new Error('Nombre y correo son requeridos');
     }
-    usuarios[idx] = { ...usuarios[idx], nombre: nombreLimpio, correo: correoNormalizado, rol, activo };
-    await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
-    
-    // Si es el usuario en sesión, actualizar también
+
+    const actualizado = await apiRequest(`/users/${idUsuario}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        nombre: nombreLimpio,
+        correo: correoNormalizado,
+        rol,
+        activo
+      })
+    });
+
     if (usuario && usuario.id === idUsuario) {
-      setUsuario(usuarios[idx]);
-      await AsyncStorage.setItem(SESION_KEY, JSON.stringify(usuarios[idx]));
+      setUsuario(actualizado);
+      await AsyncStorage.setItem(SESION_KEY, JSON.stringify(actualizado));
     }
-    
-    return usuarios[idx];
+    return actualizado;
   }
 
   async function eliminarUsuario(idUsuario) {
-    const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
-    const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    const filtrados = usuarios.filter(u => u.id !== idUsuario);
-    await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(filtrados));
+    await apiRequest(`/users/${idUsuario}`, { method: 'DELETE' });
   }
 
   return (
