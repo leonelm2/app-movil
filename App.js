@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Alert, Platform } from 'react-native';
 import AppNavigation from './navegacion';
 import { AuthProvider } from './servicios/autenticacion';
 import { obtenerTorneos } from './servicios/torneos';
@@ -10,6 +10,34 @@ import { obtenerCampeonatos } from './servicios/campeonatos';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RESET_KEY = 'RESET_DEMO_2026_02_05';
+
+if (Platform.OS === 'web' && !Alert._webPatched) {
+  const buildMessage = (title, message) => {
+    const cleanTitle = title ? String(title) : '';
+    const cleanMessage = message ? String(message) : '';
+    if (cleanTitle && cleanMessage) return `${cleanTitle}\n\n${cleanMessage}`;
+    return cleanTitle || cleanMessage;
+  };
+
+  Alert.alert = (title, message, buttons) => {
+    const text = buildMessage(title, message);
+    if (!buttons || buttons.length === 0) {
+      if (text) window.alert(text);
+      return;
+    }
+
+    const cancelButton = buttons.find(b => b && b.style === 'cancel');
+    const okButton = buttons.find(b => b && b.style !== 'cancel') || buttons[0];
+    const confirmed = window.confirm(text);
+    if (confirmed) {
+      okButton && okButton.onPress && okButton.onPress();
+    } else {
+      cancelButton && cancelButton.onPress && cancelButton.onPress();
+    }
+  };
+
+  Alert._webPatched = true;
+}
 
 export default function App() {
   useEffect(() => {
