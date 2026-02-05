@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TextInput, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function Input({ label, icon, ...props }) {
+export default function Entrada({ label, icon, ...props }) {
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}

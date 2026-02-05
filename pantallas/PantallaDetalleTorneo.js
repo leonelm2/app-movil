@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native';
-import { getTournamentById, getPlayers } from '../services/tournaments';
+import { obtenerTorneoId, obtenerJugadores } from '../servicios/torneos';
 
 export default function TournamentDetailScreen({ route, navigation }) {
   const { id } = route.params;
@@ -11,7 +11,7 @@ export default function TournamentDetailScreen({ route, navigation }) {
     (async () => {
       const t = await getTournamentById(id);
       setTournament(t);
-      const p = await getPlayers(id);
+      const p = await obtenerJugadores(id);
       setPlayers(p);
     })();
   }, [id]);

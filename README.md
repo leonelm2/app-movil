@@ -1,5 +1,7 @@
 # TorneosApp (Trabajo práctico - Desarrollo de Aplicativos)
 
+TorneosApp es una aplicación para gestionar torneos, equipos y jugadores. Se incluyeron features: fixture round-robin, resultados, CRUD, roles y gestión de usuarios.
+
 Aplicación móvil de ejemplo para crear y gestionar torneos de fútbol.
 
 Características implementadas:

@@ -1,27 +1,27 @@
 import React, { useContext } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import Button from '../components/Button';
-import { AuthContext } from '../services/auth';
+import Boton from '../componentes/Boton';
+import { AuthContext } from '../servicios/autenticacion';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useContext(AuthContext);
+  const { usuario, cerrarSesion } = useContext(AuthContext);
 
   async function handleLogout() {
-    await logout();
+    await cerrarSesion();
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{user?.name}</Text>
-      <Text style={{ color: '#ccc' }}>{user?.email}</Text>
+      <Text style={styles.title}>{usuario?.nombre}</Text>
+      <Text style={{ color: '#ccc' }}>{usuario?.correo}</Text>
 
-      <View style={{ marginTop: 20 }}>
-        <Button onPress={() => navigation.navigate('ChangePassword')}>Cambiar contraseña</Button>
+              <View style={{ marginTop: 20 }}>
+        <Boton onPress={() => navigation.navigate('ChangePassword')}>Cambiar contraseña</Boton>
       </View>
 
       <View style={{ marginTop: 12 }}>
-        <Button onPress={handleLogout}>Cerrar sesión</Button>
-      </View>
+        <Boton onPress={handleLogout}>Cerrar sesión</Boton>
+      </View> 
     </View>
   );
 }

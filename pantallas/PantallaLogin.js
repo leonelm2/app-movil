@@ -1,33 +1,33 @@
 import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import Input from '../components/Input';
-import Button from '../components/Button';
-import { AuthContext } from '../services/auth';
+import Entrada from '../componentes/Entrada';
+import Boton from '../componentes/Boton';
+import { AuthContext } from '../servicios/autenticacion';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useContext(AuthContext);
+  const [correo, setCorreo] = useState('');
+  const [contraseña, setContraseña] = useState('');
+  const [cargando, setCargando] = useState(false);
+  const { iniciarSesion } = useContext(AuthContext);
 
   async function handleLogin() {
-    if (!email || !password) return Alert.alert('Error', 'Completa todos los campos');
-    setLoading(true);
+    if (!correo || !contraseña) return Alert.alert('Error', 'Completa todos los campos');
+    setCargando(true);
     try {
-      await login({ email, password });
+      await iniciarSesion({ correo, contraseña });
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Bienvenido a TorneosApp</Text>
-      <Input label="Email" icon="mail" value={email} onChangeText={setEmail} keyboardType="email-address" />
-      <Input label="Contraseña" icon="lock-closed" value={password} onChangeText={setPassword} secureTextEntry />
-      <Button onPress={handleLogin}>{loading ? 'Ingresando...' : 'Ingresar'}</Button>
+      <Entrada label="Correo" icon="mail" value={correo} onChangeText={setCorreo} keyboardType="email-address" />
+      <Entrada label="Contraseña" icon="lock-closed" value={contraseña} onChangeText={setContraseña} secureTextEntry />
+      <Boton onPress={handleLogin}>{cargando ? 'Ingresando...' : 'Ingresar'}</Boton>
       <TouchableOpacity onPress={() => navigation.navigate('Register')} style={{ marginTop: 16 }}>
         <Text style={{ color: '#ff2d2d' }}>¿No tienes cuenta? Regístrate</Text>
       </TouchableOpacity>
