@@ -15,6 +15,33 @@ export const ROLES = {
   COORDINADOR: 'coordinador'
 };
 
+const HASH_PREFIX = 'h1:';
+
+function hashPassword(texto) {
+  const input = String(texto || '');
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return `${HASH_PREFIX}${(hash >>> 0).toString(16)}`;
+}
+
+function esHash(valor) {
+  return typeof valor === 'string' && valor.startsWith(HASH_PREFIX);
+}
+
+function verificarPassword(guardada, candidata) {
+  if (esHash(guardada)) return guardada === hashPassword(candidata);
+  return guardada === candidata;
+}
+
+function normalizarPassword(guardada, candidata) {
+  if (esHash(guardada)) return guardada;
+  if (guardada === candidata) return hashPassword(candidata);
+  return guardada;
+}
+
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -58,7 +85,7 @@ export function AuthProvider({ children }) {
       id: Date.now().toString(), 
       nombre: nombreLimpio, 
       correo: correoNormalizado, 
-      contraseña,
+      contraseña: hashPassword(contraseña),
       rol: esPrimerUsuario ? ROLES.ADMIN : rol,
       activo: true,
       creadoEn: new Date().toISOString()
@@ -78,8 +105,17 @@ export function AuthProvider({ children }) {
     const encontrado = usuarios.find(u => u.correo.toLowerCase() === correoNormalizado);
     
     if (!encontrado) throw new Error('El usuario no existe');
-    if (encontrado.contraseña !== contraseña) throw new Error('Contraseña incorrecta');
+    if (!verificarPassword(encontrado.contraseña, contraseña)) throw new Error('Contraseña incorrecta');
     if (!encontrado.activo) throw new Error('Usuario desactivado');
+
+    const passwordActualizada = normalizarPassword(encontrado.contraseña, contraseña);
+    if (passwordActualizada !== encontrado.contraseña) {
+      const usuariosActualizados = usuarios.map(u =>
+        u.id === encontrado.id ? { ...u, contraseña: passwordActualizada } : u
+      );
+      await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuariosActualizados));
+      encontrado.contraseña = passwordActualizada;
+    }
     
     await AsyncStorage.setItem(SESION_KEY, JSON.stringify(encontrado));
     setUsuario(encontrado);
@@ -94,19 +130,21 @@ export function AuthProvider({ children }) {
   async function cambiarContraseña({ correo, contraseñaActual, contraseñaNueva }) {
     const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
     const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    const idx = usuarios.findIndex(u => u.correo === correo && u.contraseña === contraseñaActual);
-    
+    const idx = usuarios.findIndex(u => u.correo === correo);
     if (idx === -1) throw new Error('Contraseña actual incorrecta');
+    if (!verificarPassword(usuarios[idx].contraseña, contraseñaActual)) {
+      throw new Error('Contraseña actual incorrecta');
+    }
     if (!contraseñaNueva || contraseñaNueva.length < 6) {
       throw new Error('La contraseña debe tener al menos 6 caracteres');
     }
     
-    usuarios[idx].contraseña = contraseñaNueva;
+    usuarios[idx].contraseña = hashPassword(contraseñaNueva);
     await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
     const sesion = JSON.parse(await AsyncStorage.getItem(SESION_KEY));
     
     if (sesion && sesion.correo === correo) {
-      sesion.contraseña = contraseñaNueva;
+      sesion.contraseña = usuarios[idx].contraseña;
       await AsyncStorage.setItem(SESION_KEY, JSON.stringify(sesion));
       setUsuario(sesion);
     }
@@ -141,7 +179,7 @@ export function AuthProvider({ children }) {
       id: Date.now().toString(), 
       nombre: nombreLimpio, 
       correo: correoNormalizado, 
-      contraseña,
+      contraseña: hashPassword(contraseña),
       rol: rol || ROLES.ENTRENADOR,
       activo: true,
       creadoEn: new Date().toISOString()
