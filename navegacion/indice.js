@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
 
 import PantallaLogin from '../pantallas/PantallaLogin';
 import PantallaRegistro from '../pantallas/PantallaRegistro';
@@ -15,16 +16,43 @@ import PantallaCambiarContraseña from '../pantallas/PantallaCambiarContraseña'
 import PantallaRegistrarJugador from '../pantallas/PantallaRegistrarJugador';
 import PantallaGestionUsuarios from '../pantallas/PantallaGestionUsuarios';
 import PantallaCampeonatos from '../pantallas/PantallaCampeonatos';
-import PantallaDetalleCampeonato from '../pantallas/PantallaDetalleCampeonato';
+import PantallaDetalleCampeonato from '../pantallas/PantallaDetalleCampeonatoV2';
+import PantallaEquipos from '../pantallas/PantallaEquipos';
+import Logo from '../componentes/Logo';
 
 import { AuthContext, ROLES } from '../servicios/autenticacion';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const baseHeaderOptions = {
+  headerStyle: { backgroundColor: '#000', height: 110 },
+  headerTintColor: '#fff',
+  headerTitleAlign: 'center',
+  headerTitle: () => <Logo size="header" showText={false} />
+};
+
+const getHeaderOptions = (navigation) => ({
+  ...baseHeaderOptions,
+  headerLeft: () => (
+    <TouchableOpacity
+      onPress={() => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Inicio');
+        }
+      }}
+      style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+    >
+      <Ionicons name="chevron-back" size={22} color="#fff" />
+    </TouchableOpacity>
+  )
+});
+
 function TournamentsStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={({ navigation }) => getHeaderOptions(navigation)}>
       <Stack.Screen 
         name="TournamentsTab" 
         component={PantallaTorneos}
@@ -46,7 +74,7 @@ function TournamentsStack() {
 
 function ChampionshipsStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={({ navigation }) => getHeaderOptions(navigation)}>
       <Stack.Screen 
         name="ChampionshipsTab" 
         component={PantallaCampeonatos}
@@ -65,13 +93,15 @@ function ChampionshipsStack() {
 function AdminTabs() {
   return (
     <Tab.Navigator 
-      screenOptions={({ route }) => ({
-        headerShown: false,
+      screenOptions={({ route, navigation }) => ({
+        headerShown: true,
+        ...getHeaderOptions(navigation),
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === 'Inicio') iconName = 'home';
           if (route.name === 'Usuarios') iconName = 'people';
           if (route.name === 'Campeonatos') iconName = 'trophy';
+          if (route.name === 'Equipos') iconName = 'shield';
           if (route.name === 'Perfil') iconName = 'person';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -82,6 +112,7 @@ function AdminTabs() {
     >
       <Tab.Screen name="Inicio" component={PantallaPrincipal} />
       <Tab.Screen name="Campeonatos" component={ChampionshipsStack} options={{ headerShown: false }} />
+      <Tab.Screen name="Equipos" component={PantallaEquipos} />
       <Tab.Screen name="Usuarios" component={PantallaGestionUsuarios} />
       <Tab.Screen name="Perfil" component={PantallaPerfil} />
     </Tab.Navigator>
@@ -92,13 +123,15 @@ function AdminTabs() {
 function MainTabs() {
   return (
     <Tab.Navigator 
-      screenOptions={({ route }) => ({
-        headerShown: false,
+      screenOptions={({ route, navigation }) => ({
+        headerShown: true,
+        ...getHeaderOptions(navigation),
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === 'Inicio') iconName = 'home';
           if (route.name === 'Campeonatos') iconName = 'trophy';
           if (route.name === 'Torneos') iconName = 'medal';
+          if (route.name === 'Equipos') iconName = 'shield';
           if (route.name === 'Perfil') iconName = 'person';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -110,6 +143,7 @@ function MainTabs() {
       <Tab.Screen name="Inicio" component={PantallaPrincipal} />
       <Tab.Screen name="Campeonatos" component={ChampionshipsStack} options={{ headerShown: false }} />
       <Tab.Screen name="Torneos" component={TournamentsStack} options={{ headerShown: false }} />
+      <Tab.Screen name="Equipos" component={PantallaEquipos} />
       <Tab.Screen name="Perfil" component={PantallaPerfil} />
     </Tab.Navigator>
   );
@@ -121,11 +155,7 @@ export default function AppNavigation() {
   return (
     <NavigationContainer>
       {usuario ? (
-        <Stack.Navigator screenOptions={{ 
-          headerStyle: { backgroundColor: '#000' }, 
-          headerTintColor: '#fff',
-          headerTitleStyle: { color: '#fff' }
-        }}>
+        <Stack.Navigator screenOptions={({ navigation }) => getHeaderOptions(navigation)}>
           {usuario.rol === ROLES.ADMIN ? (
             <Stack.Screen 
               name="AdminMain" 
@@ -152,9 +182,17 @@ export default function AppNavigation() {
           />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator>
-          <Stack.Screen name="Login" component={PantallaLogin} options={{ headerShown: false }} />
-          <Stack.Screen name="Register" component={PantallaRegistro} options={{ title: 'Registro' }} />
+        <Stack.Navigator screenOptions={({ navigation }) => getHeaderOptions(navigation)}>
+          <Stack.Screen
+            name="Login"
+            component={PantallaLogin}
+            options={{ headerLeft: () => null, title: ' ' }}
+          />
+          <Stack.Screen
+            name="Register"
+            component={PantallaRegistro}
+            options={{ headerLeft: () => null, title: 'Registro' }}
+          />
         </Stack.Navigator>
       )}
     </NavigationContainer>

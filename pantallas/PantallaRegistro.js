@@ -13,8 +13,13 @@ export default function RegisterScreen({ navigation }) {
   const { registrar } = useContext(AuthContext);
 
   async function handleRegister() {
-    if (!nombre || !correo || !contraseña || !confirmar) {
+    const correoLimpio = String(correo || '').trim();
+    if (!nombre || !correoLimpio || !contraseña || !confirmar) {
       return Alert.alert('Error', 'Completa todos los campos');
+    }
+    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio);
+    if (!correoValido) {
+      return Alert.alert('Error', 'Correo inválido');
     }
     if (contraseña !== confirmar) {
       return Alert.alert('Error', 'Las contraseñas no coinciden');
@@ -23,7 +28,7 @@ export default function RegisterScreen({ navigation }) {
       return Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
     }
     try {
-      await registrar({ nombre, correo, contraseña, rol });
+      await registrar({ nombre, correo: correoLimpio, contraseña, rol });
       Alert.alert('Éxito', 'Cuenta creada exitosamente');
     } catch (e) {
       Alert.alert('Error', e.message);

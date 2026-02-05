@@ -1,4 +1,70 @@
 import { obtenerCampeonatoId, actualizarCampeonato } from './campeonatos';
+
+export async function obtenerPosicionesCampeonato(idCampeonato) {
+  const campeonato = await obtenerCampeonatoId(idCampeonato);
+  if (!campeonato) throw new Error('Campeonato no encontrado');
+
+  if (!campeonato.fases.grupos) {
+    return { grupos: [] };
+  }
+
+  const grupos = campeonato.fases.grupos.grupos.map(grupo => ({
+    ...grupo,
+    equipos: [...grupo.equipos].sort((a, b) => {
+      if (b.estadisticas.puntos !== a.estadisticas.puntos) {
+        return b.estadisticas.puntos - a.estadisticas.puntos;
+      }
+      const diffA = a.estadisticas.golesAFavor - a.estadisticas.golesEnContra;
+      const diffB = b.estadisticas.golesAFavor - b.estadisticas.golesEnContra;
+      if (diffB !== diffA) return diffB - diffA;
+      return b.estadisticas.golesAFavor - a.estadisticas.golesAFavor;
+    })
+  }));
+
+  return { grupos };
+}
+
+export async function getMatchDetails(idCampeonato, idGrupo, idPartido) {
+  const campeonato = await obtenerCampeonatoId(idCampeonato);
+  if (!campeonato) throw new Error('Campeonato no encontrado');
+
+  const grupo = campeonato.fases.grupos?.grupos?.find(g => g.id === idGrupo);
+  if (!grupo) throw new Error('Grupo no encontrado');
+
+  const partido = grupo.partidos.find(p => p.id === idPartido);
+  if (!partido) throw new Error('Partido no encontrado');
+
+  return {
+    partido,
+    grupo: grupo.nombre,
+    local: partido.local,
+    visitante: partido.visitante
+  };
+}
+
+export async function updatePlayerGoals(idCampeonato, idGrupo, idPartido, { localJugadorId, visitanteJugadorId, golesLocal, golesVisitante }) {
+  const campeonato = await obtenerCampeonatoId(idCampeonato);
+  if (!campeonato) throw new Error('Campeonato no encontrado');
+
+  const grupo = campeonato.fases.grupos?.grupos?.find(g => g.id === idGrupo);
+  if (!grupo) throw new Error('Grupo no encontrado');
+
+  const partido = grupo.partidos.find(p => p.id === idPartido);
+  if (!partido) throw new Error('Partido no encontrado');
+
+  if (localJugadorId) {
+    const jugadorLocal = partido.local.jugadores?.find(j => j.id === localJugadorId);
+    if (jugadorLocal) jugadorLocal.goles += parseInt(golesLocal, 10) || 0;
+  }
+
+  if (visitanteJugadorId) {
+    const jugadorVisitante = partido.visitante.jugadores?.find(j => j.id === visitanteJugadorId);
+    if (jugadorVisitante) jugadorVisitante.goles += parseInt(golesVisitante, 10) || 0;
+  }
+
+  await actualizarCampeonato(idCampeonato, { fases: campeonato.fases });
+  return partido;
+}import { obtenerCampeonatoId, actualizarCampeonato } from './campeonatos';
 import { obtenerPosicionesGrupo } from './fases';
 
 // ==================== TABLA DE POSICIONES ====================

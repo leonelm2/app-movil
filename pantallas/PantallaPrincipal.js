@@ -23,19 +23,12 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Encabezado con "Potrero" */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.logo}>Potrero</Text>
-          <Text style={styles.roleText}>
-            {usuario?.rol === ROLES.ADMIN && '👨‍💼 Administrador'}
-            {usuario?.rol === ROLES.ENTRENADOR && '🏋️ Entrenador'}
-            {usuario?.rol === ROLES.COORDINADOR && '📋 Coordinador'}
-          </Text>
-        </View>
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.roleText}>
+          {usuario?.rol === ROLES.ADMIN && '👨‍💼 Administrador'}
+          {usuario?.rol === ROLES.ENTRENADOR && '🏋️ Entrenador'}
+          {usuario?.rol === ROLES.COORDINADOR && '📋 Coordinador'}
+        </Text>
         {/* Saludo */}
         <Text style={styles.greeting}>¡Bienvenido, {usuario?.nombre}!</Text>
 
@@ -118,24 +111,10 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#000'
   },
-  header: {
-    paddingTop: 12,
-    paddingLeft: 20,
-    paddingRight: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ff2d2d'
-  },
-  logo: {
-    color: '#ff2d2d',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 1
-  },
   roleText: {
     color: '#aaa',
     fontSize: 12,
-    marginTop: 4,
+    marginBottom: 10,
     fontWeight: '500'
   },
   content: {

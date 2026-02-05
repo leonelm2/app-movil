@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import Boton from '../componentes/Boton';
 import { obtenerCampeonatos, crearCampeonato, actualizarCampeonato, eliminarCampeonato, obtenerDisciplinas } from '../servicios/campeonatos';
+import { AuthContext, ROLES } from '../servicios/autenticacion';
 
 export default function ChampionshipsScreen({ navigation }) {
+  const { usuario } = useContext(AuthContext);
   const [championships, setChampionships] = useState([]);
   const [disciplines, setDisciplines] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingChamp, setEditingChamp] = useState(null);
+  const esAdmin = usuario?.rol === ROLES.ADMIN;
   
   // Formulario
   const [name, setName] = useState('');
@@ -32,6 +35,7 @@ export default function ChampionshipsScreen({ navigation }) {
   }
 
   function openCreateModal() {
+    if (!esAdmin) return;
     setEditingChamp(null);
     setName('');
     setDisciplineId(disciplines[0]?.id || '');
@@ -42,12 +46,13 @@ export default function ChampionshipsScreen({ navigation }) {
   }
 
   function openEditModal(champ) {
+    if (!esAdmin) return;
     setEditingChamp(champ);
-    setName(champ.name);
-    setDisciplineId(champ.disciplineId);
-    setStartDate(champ.startDate);
-    setEndDate(champ.endDate);
-    setDescription(champ.description);
+    setName(champ.nombre);
+    setDisciplineId(champ.disciplinaId);
+    setStartDate(champ.fechaInicio);
+    setEndDate(champ.fechaFin);
+    setDescription(champ.descripcion);
     setModalVisible(true);
   }
 
@@ -58,21 +63,21 @@ export default function ChampionshipsScreen({ navigation }) {
 
     try {
       if (editingChamp) {
-        await actualizarCampeonato(editingChamp.id, { 
-          nombre: name, 
-          disciplinaId: disciplineId, 
-          fechaInicio: startDate, 
-          fechaFin: endDate, 
-          descripcion: description 
+        await actualizarCampeonato(editingChamp.id, {
+          nombre: name,
+          disciplinaId: disciplineId,
+          fechaInicio: startDate,
+          fechaFin: endDate,
+          descripcion: description
         });
         Alert.alert('Éxito', 'Campeonato actualizado');
       } else {
-        await crearCampeonato({ 
-          nombre: name, 
-          disciplinaId: disciplineId, 
-          fechaInicio: startDate, 
-          fechaFin: endDate, 
-          descripcion: description 
+        await crearCampeonato({
+          nombre: name,
+          disciplinaId: disciplineId,
+          fechaInicio: startDate,
+          fechaFin: endDate,
+          descripcion: description
         });
         Alert.alert('Éxito', 'Campeonato creado');
       }
@@ -84,7 +89,8 @@ export default function ChampionshipsScreen({ navigation }) {
   }
 
   function handleDelete(champ) {
-    Alert.alert('Confirmar', `¿Eliminar "${champ.name}"?`, [
+    if (!esAdmin) return;
+    Alert.alert('Confirmar', `¿Eliminar "${champ.nombre}"?`, [
       { text: 'Cancelar' },
       {
         text: 'Eliminar',
@@ -117,7 +123,7 @@ export default function ChampionshipsScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Campeonatos</Text>
-        <Boton onPress={openCreateModal}>➕ Nuevo</Boton>
+        {esAdmin && <Boton onPress={openCreateModal}>➕ Nuevo</Boton>}
       </View>
 
       <FlatList
@@ -126,16 +132,16 @@ export default function ChampionshipsScreen({ navigation }) {
         renderItem={({ item }) => (
           <View style={styles.champCard}>
             <View style={styles.champInfo}>
-              <Text style={styles.champName}>{item.name}</Text>
-              <Text style={styles.discipline}>{getDisciplineName(item.disciplineId)}</Text>
+              <Text style={styles.champName}>{item.nombre}</Text>
+              <Text style={styles.discipline}>{getDisciplineName(item.disciplinaId)}</Text>
               <View style={styles.dates}>
-                <Text style={styles.dateText}>📅 {item.startDate} - {item.endDate}</Text>
+                <Text style={styles.dateText}>📅 {item.fechaInicio} - {item.fechaFin}</Text>
               </View>
-              {item.description ? (
-                <Text style={styles.description}>{item.description}</Text>
+              {item.descripcion ? (
+                <Text style={styles.description}>{item.descripcion}</Text>
               ) : null}
-              <View style={[styles.statusBadge, { backgroundColor: statusColors[item.status] || '#ff2d2d' }]}>
-                <Text style={styles.statusText}>{item.status}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: statusColors[item.estado] || '#ff2d2d' }]}>
+                <Text style={styles.statusText}>{item.estado}</Text>
               </View>
             </View>
 
@@ -146,18 +152,22 @@ export default function ChampionshipsScreen({ navigation }) {
               >
                 <Text style={styles.actionBtnText}>Detalles</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => openEditModal(item)}
-              >
-                <Text style={styles.actionBtnText}>Editar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.deleteBtn]}
-                onPress={() => handleDelete(item)}
-              >
-                <Text style={styles.actionBtnText}>Eliminar</Text>
-              </TouchableOpacity>
+              {esAdmin && (
+                <>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => openEditModal(item)}
+                  >
+                    <Text style={styles.actionBtnText}>Editar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.deleteBtn]}
+                    onPress={() => handleDelete(item)}
+                  >
+                    <Text style={styles.actionBtnText}>Eliminar</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         )}

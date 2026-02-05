@@ -25,6 +25,7 @@ export default function TournamentsScreen({ navigation }) {
     setTorneos(lista);
   }
 
+
   async function crearOActualizar() {
     if (!nombre || !equipos || !fecha) return Alert.alert('Error', 'Completa todos los campos');
     if (editando) {

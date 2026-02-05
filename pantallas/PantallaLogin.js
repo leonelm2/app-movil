@@ -11,10 +11,14 @@ export default function LoginScreen({ navigation }) {
   const { iniciarSesion } = useContext(AuthContext);
 
   async function handleLogin() {
-    if (!correo || !contraseña) return Alert.alert('Error', 'Completa todos los campos');
+    const correoLimpio = String(correo || '').trim();
+    if (!correoLimpio || !contraseña) return Alert.alert('Error', 'Completa todos los campos');
+    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio);
+    if (!correoValido) return Alert.alert('Error', 'Correo inválido');
+    if (contraseña.length < 6) return Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
     setCargando(true);
     try {
-      await iniciarSesion({ correo, contraseña });
+      await iniciarSesion({ correo: correoLimpio, contraseña });
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {
@@ -24,7 +28,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bienvenido a TorneosApp</Text>
+      <Text style={styles.title}>Bienvenido a Potrero</Text>
       <Entrada label="Correo" icon="mail" value={correo} onChangeText={setCorreo} keyboardType="email-address" />
       <Entrada label="Contraseña" icon="lock-closed" value={contraseña} onChangeText={setContraseña} secureTextEntry />
       <Boton onPress={handleLogin}>{cargando ? 'Ingresando...' : 'Ingresar'}</Boton>

@@ -35,8 +35,17 @@ export function AuthProvider({ children }) {
   async function registrar({ nombre, correo, contraseña, rol = ROLES.ENTRENADOR }) {
     const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
     const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
+
+    const correoNormalizado = String(correo || '').trim().toLowerCase();
+    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoNormalizado);
+    if (!correoValido) {
+      throw new Error('Correo inválido');
+    }
+    if (!contraseña || contraseña.length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres');
+    }
     
-    if (usuarios.find(u => u.correo === correo)) {
+    if (usuarios.find(u => u.correo.toLowerCase() === correoNormalizado)) {
       throw new Error('El correo ya está registrado');
     }
 
@@ -45,7 +54,7 @@ export function AuthProvider({ children }) {
     const nuevoUsuario = { 
       id: Date.now().toString(), 
       nombre, 
-      correo, 
+      correo: correoNormalizado, 
       contraseña,
       rol: esPrimerUsuario ? ROLES.ADMIN : rol,
       activo: true,
@@ -62,9 +71,11 @@ export function AuthProvider({ children }) {
   async function iniciarSesion({ correo, contraseña }) {
     const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
     const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    const encontrado = usuarios.find(u => u.correo === correo && u.contraseña === contraseña);
+    const correoNormalizado = String(correo || '').trim().toLowerCase();
+    const encontrado = usuarios.find(u => u.correo.toLowerCase() === correoNormalizado);
     
-    if (!encontrado) throw new Error('Credenciales inválidas');
+    if (!encontrado) throw new Error('El usuario no existe');
+    if (encontrado.contraseña !== contraseña) throw new Error('Contraseña incorrecta');
     if (!encontrado.activo) throw new Error('Usuario desactivado');
     
     await AsyncStorage.setItem(SESION_KEY, JSON.stringify(encontrado));
