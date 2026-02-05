@@ -12,6 +12,7 @@ export default function TournamentsScreen({ navigation }) {
   const [nombre, setNombre] = useState('');
   const [equipos, setEquipos] = useState('');
   const [fecha, setFecha] = useState('');
+  const [disciplina, setDisciplina] = useState('futbol');
   const [seleccionadoPara, setSeleccionadoPara] = useState(null);
 
   useEffect(() => {
@@ -27,22 +28,25 @@ export default function TournamentsScreen({ navigation }) {
 
 
   async function crearOActualizar() {
-    if (!nombre || !equipos || !fecha) return Alert.alert('Error', 'Completa todos los campos');
+    if (!nombre || !equipos || !fecha || !disciplina) return Alert.alert('Error', 'Completa todos los campos');
     if (editando) {
-      await actualizarTorneo(editando.id, { nombre, equipos: parseInt(equipos, 10), fecha });
+      await actualizarTorneo(editando.id, { nombre, equipos: parseInt(equipos, 10), fecha, disciplina });
     } else {
-      const t = { nombre, equipos: parseInt(equipos, 10), fecha, estado: 'Pendiente' };
+      const t = { nombre, equipos: parseInt(equipos, 10), fecha, disciplina, estado: 'Pendiente' };
       await crearTorneo(t);
     }
     setModalVisible(false);
     setEditando(null);
-    setNombre(''); setEquipos(''); setFecha('');
+    setNombre(''); setEquipos(''); setFecha(''); setDisciplina('futbol');
     cargar();
   }
 
   async function editar(item) {
     setEditando(item);
-    setNombre(item.nombre); setEquipos(String(item.equipos)); setFecha(item.fecha);
+    setNombre(item.nombre);
+    setEquipos(String(item.equipos));
+    setFecha(item.fecha);
+    setDisciplina(item.disciplina || 'futbol');
     setModalVisible(true);
   }
 
@@ -58,6 +62,11 @@ export default function TournamentsScreen({ navigation }) {
   }
 
   const puedeGestionar = usuario && (usuario.rol === 'organizador' || usuario.rol === 'profesor');
+  const disciplinas = [
+    { clave: 'futbol', etiqueta: 'FUTBOL' },
+    { clave: 'basquet', etiqueta: 'BASQUET' },
+    { clave: 'voley', etiqueta: 'VOLEY' }
+  ];
 
   return (
     <View style={styles.container}>
@@ -75,7 +84,7 @@ export default function TournamentsScreen({ navigation }) {
                 <TouchableOpacity style={styles.cardContent} onPress={() => navigation.navigate('DetalleTorneo', { id: item.id })}>
                   <View style={styles.cardInfo}>
                     <Text style={styles.tournamentName}>{item.nombre}</Text>
-                    <Text style={styles.meta}>{item.equipos} equipos • {item.fecha}</Text>
+                    <Text style={styles.meta}>{item.equipos} equipos • {item.fecha} • {item.disciplina || 'futbol'}</Text>
                   </View>
                 </TouchableOpacity>
                 <View style={styles.cardActions}>
@@ -154,6 +163,28 @@ export default function TournamentsScreen({ navigation }) {
               value={fecha} 
               onChangeText={setFecha} 
             />
+            <Text style={styles.modalLabel}>Disciplina</Text>
+            <View style={styles.disciplinaRow}>
+              {disciplinas.map(opcion => (
+                <TouchableOpacity
+                  key={opcion.clave}
+                  style={[
+                    styles.disciplinaBtn,
+                    disciplina === opcion.clave && styles.disciplinaBtnActive
+                  ]}
+                  onPress={() => setDisciplina(opcion.clave)}
+                >
+                  <Text
+                    style={[
+                      styles.disciplinaText,
+                      disciplina === opcion.clave && styles.disciplinaTextActive
+                    ]}
+                  >
+                    {opcion.etiqueta}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <View style={{ flex: 1 }}>
                 <Boton onPress={crearOActualizar}>Guardar</Boton>
@@ -320,5 +351,37 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#333'
+  },
+  modalLabel: {
+    color: '#aaa',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8
+  },
+  disciplinaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12
+  },
+  disciplinaBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#333',
+    backgroundColor: '#000',
+    alignItems: 'center'
+  },
+  disciplinaBtnActive: {
+    borderColor: '#ff2d2d',
+    backgroundColor: 'rgba(255, 45, 45, 0.1)'
+  },
+  disciplinaText: {
+    color: '#aaa',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  disciplinaTextActive: {
+    color: '#ff2d2d'
   }
 });

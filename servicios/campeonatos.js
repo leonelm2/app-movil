@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { obtenerEquipos } from './equipos';
 
 const CHAMPIONSHIPS_KEY = 'CAMPEONATOS';
 const DISCIPLINES_KEY = 'DISCIPLINAS';
@@ -87,7 +88,9 @@ export async function eliminarCampeonato(id) {
 
 export async function obtenerCampeonatoId(id) {
   const lista = await obtenerCampeonatos();
-  return lista.find(x => x.id === id);
+  const encontrado = lista.find(x => x.id === id);
+  if (!encontrado) return undefined;
+  return await sincronizarEquiposConClubes(encontrado);
 }
 
 // ==================== EQUIPOS EN CAMPEONATO ====================
@@ -163,19 +166,59 @@ export async function obtenerEquiposDeCampeonato(idCampeonato) {
   return campeonato ? campeonato.equipos : [];
 }
 
+function normalizarNombre(nombre) {
+  return String(nombre || '').trim().toLowerCase().replace(/^club\s+/, '');
+}
+
+function mapJugadoresEquipo(jugadoresBase = [], prefijoId) {
+  return jugadoresBase.map((jugador, index) => ({
+    id: jugador.id || `${prefijoId}-${index + 1}`,
+    nombre: jugador.nombre,
+    numero: index + 1,
+    posicion: jugador.posicion,
+    goles: 0,
+    tarjetasAmarillas: 0,
+    tarjetasRojas: 0
+  }));
+}
+
+async function sincronizarEquiposConClubes(campeonato) {
+  if (!campeonato || !Array.isArray(campeonato.equipos)) return campeonato;
+  const clubes = await obtenerEquipos();
+  let updated = false;
+  const nextEquipos = campeonato.equipos.map(equipo => {
+    const match = clubes.find(c => normalizarNombre(c.nombre) === normalizarNombre(equipo.nombre));
+    if (!match) return equipo;
+    const jugadoresBase = mapJugadoresEquipo(match.jugadores || [], equipo.id);
+    const actuales = Array.isArray(equipo.jugadores) ? equipo.jugadores : [];
+    const mismosNombres = actuales.length === jugadoresBase.length && actuales.every((j, i) => j.nombre === jugadoresBase[i].nombre);
+    if (!mismosNombres) {
+      updated = true;
+      return { ...equipo, jugadores: jugadoresBase };
+    }
+    return equipo;
+  });
+
+  if (updated) {
+    await actualizarCampeonato(campeonato.id, { equipos: nextEquipos });
+    return { ...campeonato, equipos: nextEquipos };
+  }
+  return campeonato;
+}
+
 function buildDemoCampeonatos() {
   const equiposA = [
-    { id: 'c1-e1', nombre: 'Club Alianza', color: '#ff2d2d', entrenador: 'Carlos Vega', jugadores: [], estadisticas: baseStats() },
-    { id: 'c1-e2', nombre: 'Club Desamparados', color: '#0066ff', entrenador: 'Mateo Luna', jugadores: [], estadisticas: baseStats() },
-    { id: 'c1-e3', nombre: 'Club San Martin', color: '#00aa00', entrenador: 'Diego Rojas', jugadores: [], estadisticas: baseStats() },
-    { id: 'c1-e4', nombre: 'Club Union', color: '#ffaa00', entrenador: 'Leo Silva', jugadores: [], estadisticas: baseStats() }
+    { id: 'c1-e1', nombre: 'Club Alianza', color: '#ff2d2d', entrenador: 'DT: Carlos Vega', jugadores: [], estadisticas: baseStats() },
+    { id: 'c1-e2', nombre: 'Club Desamparados', color: '#0066ff', entrenador: 'DT: Mateo Luna', jugadores: [], estadisticas: baseStats() },
+    { id: 'c1-e3', nombre: 'Club San Martin', color: '#00aa00', entrenador: 'DT: Diego Rojas', jugadores: [], estadisticas: baseStats() },
+    { id: 'c1-e4', nombre: 'Club Union', color: '#ffaa00', entrenador: 'DT: Leo Silva', jugadores: [], estadisticas: baseStats() }
   ];
 
   const equiposB = [
-    { id: 'c2-e1', nombre: 'Club Santo Domingo', color: '#ff2d2d', entrenador: 'Andres Soto', jugadores: [], estadisticas: baseStats() },
-    { id: 'c2-e2', nombre: 'Club Rivadavia', color: '#0066ff', entrenador: 'Franco Diaz', jugadores: [], estadisticas: baseStats() },
-    { id: 'c2-e3', nombre: 'Club Rawson', color: '#00aa00', entrenador: 'Julian Perez', jugadores: [], estadisticas: baseStats() },
-    { id: 'c2-e4', nombre: 'Club Chimbas', color: '#ffaa00', entrenador: 'Nicolas Gomez', jugadores: [], estadisticas: baseStats() }
+    { id: 'c2-e1', nombre: 'Club Santo Domingo', color: '#ff2d2d', entrenador: 'DT: Andres Soto', jugadores: [], estadisticas: baseStats() },
+    { id: 'c2-e2', nombre: 'Club Rivadavia', color: '#0066ff', entrenador: 'DT: Franco Diaz', jugadores: [], estadisticas: baseStats() },
+    { id: 'c2-e3', nombre: 'Club Rawson', color: '#00aa00', entrenador: 'DT: Julian Perez', jugadores: [], estadisticas: baseStats() },
+    { id: 'c2-e4', nombre: 'Club Chimbas', color: '#ffaa00', entrenador: 'DT: Nicolas Gomez', jugadores: [], estadisticas: baseStats() }
   ];
 
   const gruposA = buildGroupPhase('Fase de Grupos', equiposA, 2, [

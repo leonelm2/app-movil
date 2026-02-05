@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
-import { obtenerEquipos } from '../servicios/equipos';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import { obtenerEquipos, crearEquipo } from '../servicios/equipos';
+import Boton from '../componentes/Boton';
 
 export default function EquiposScreen() {
   const [equipos, setEquipos] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [nombreEquipo, setNombreEquipo] = useState('');
 
   useEffect(() => {
     cargar();
@@ -13,6 +16,19 @@ export default function EquiposScreen() {
   async function cargar() {
     const data = await obtenerEquipos();
     setEquipos(data);
+  }
+
+  async function handleCrearEquipo() {
+    const nombreLimpio = String(nombreEquipo || '').trim();
+    if (!nombreLimpio) return Alert.alert('Error', 'Nombre requerido');
+    try {
+      await crearEquipo(nombreLimpio);
+      setNombreEquipo('');
+      setModalVisible(false);
+      cargar();
+    } catch (error) {
+      Alert.alert('Error', error.message || 'No se pudo crear el equipo');
+    }
   }
 
   if (seleccionado) {
@@ -41,6 +57,10 @@ export default function EquiposScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.headerList}>
+        <Text style={styles.headerTitle}>Equipos</Text>
+        <Boton onPress={() => setModalVisible(true)} small>➕ Nuevo</Boton>
+      </View>
       <FlatList
         data={equipos}
         keyExtractor={item => item.id}
@@ -53,6 +73,27 @@ export default function EquiposScreen() {
         ListEmptyComponent={<Text style={styles.emptyText}>No hay equipos cargados</Text>}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalBg}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Nuevo equipo</Text>
+            <TextInput
+              placeholder="Nombre del equipo"
+              placeholderTextColor="#666"
+              style={styles.input}
+              value={nombreEquipo}
+              onChangeText={setNombreEquipo}
+            />
+            <View style={styles.modalActions}>
+              <Boton onPress={handleCrearEquipo}>Crear</Boton>
+              <View style={{ marginTop: 10 }}>
+                <Boton onPress={() => setModalVisible(false)}>Cancelar</Boton>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -70,6 +111,46 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
     flexDirection: 'row',
     alignItems: 'center'
+  },
+  headerList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4
+  },
+  modalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    padding: 20
+  },
+  modal: {
+    backgroundColor: '#111',
+    borderRadius: 8,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#333'
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center'
+  },
+  input: {
+    backgroundColor: '#000',
+    color: '#fff',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#333'
+  },
+  modalActions: {
+    marginTop: 4
   },
   backBtn: {
     marginRight: 12,

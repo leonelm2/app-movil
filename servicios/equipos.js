@@ -2,51 +2,60 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EQUIPOS_KEY = 'EQUIPOS';
 
+const plantillaBase = [
+  { nombre: 'Lucas Fernandez', posicion: 'Portero' },
+  { nombre: 'Sergio Molina', posicion: 'Portero' },
+  { nombre: 'Nicolas Gomez', posicion: 'Defensa' },
+  { nombre: 'Matias Vega', posicion: 'Defensa' },
+  { nombre: 'Bruno Diaz', posicion: 'Defensa' },
+  { nombre: 'Pablo Rojas', posicion: 'Defensa' },
+  { nombre: 'Franco Silva', posicion: 'Mediocampista' },
+  { nombre: 'Agustin Castro', posicion: 'Mediocampista' },
+  { nombre: 'Diego Torres', posicion: 'Mediocampista' },
+  { nombre: 'Julian Perez', posicion: 'Delantero' },
+  { nombre: 'Emanuel Lopez', posicion: 'Delantero' }
+];
+
+function buildPlantel(prefijoId) {
+  return plantillaBase.map((jugador, index) => ({
+    id: `${prefijoId}-${index + 1}`,
+    nombre: jugador.nombre,
+    edad: 19 + index,
+    posicion: jugador.posicion,
+    nacionalidad: 'Argentina'
+  }));
+}
+
+function normalizarJugadores(actuales = [], base = []) {
+  if (!Array.isArray(actuales) || actuales.length !== base.length) return base;
+  return actuales;
+}
+
 const seedEquipos = [
   {
     id: 'eq-alianza',
     nombre: 'Alianza',
-    jugadores: [
-      { id: 'eq-ali-1', nombre: 'Matias Pereyra', edad: 22, posicion: 'Delantero', nacionalidad: 'Argentina' },
-      { id: 'eq-ali-2', nombre: 'Bruno Torres', edad: 24, posicion: 'Mediocampista', nacionalidad: 'Argentina' },
-      { id: 'eq-ali-3', nombre: 'Lautaro Soria', edad: 23, posicion: 'Defensa', nacionalidad: 'Argentina' }
-    ]
+    jugadores: buildPlantel('eq-ali')
   },
   {
     id: 'eq-desamparados',
     nombre: 'Desamparados',
-    jugadores: [
-      { id: 'eq-des-1', nombre: 'Nicolas Perez', edad: 25, posicion: 'Delantero', nacionalidad: 'Argentina' },
-      { id: 'eq-des-2', nombre: 'Santiago Diaz', edad: 21, posicion: 'Mediocampista', nacionalidad: 'Argentina' },
-      { id: 'eq-des-3', nombre: 'Gaston Molina', edad: 26, posicion: 'Defensa', nacionalidad: 'Argentina' }
-    ]
+    jugadores: buildPlantel('eq-des')
   },
   {
     id: 'eq-san-martin',
     nombre: 'San Martin',
-    jugadores: [
-      { id: 'eq-sm-1', nombre: 'Emanuel Rojas', edad: 23, posicion: 'Delantero', nacionalidad: 'Argentina' },
-      { id: 'eq-sm-2', nombre: 'Franco Silva', edad: 22, posicion: 'Mediocampista', nacionalidad: 'Argentina' },
-      { id: 'eq-sm-3', nombre: 'Lucas Herrera', edad: 24, posicion: 'Portero', nacionalidad: 'Argentina' }
-    ]
+    jugadores: buildPlantel('eq-sm')
   },
   {
     id: 'eq-union',
     nombre: 'Union',
-    jugadores: [
-      { id: 'eq-uni-1', nombre: 'Agustin Castro', edad: 21, posicion: 'Delantero', nacionalidad: 'Argentina' },
-      { id: 'eq-uni-2', nombre: 'Brian Luna', edad: 25, posicion: 'Mediocampista', nacionalidad: 'Argentina' },
-      { id: 'eq-uni-3', nombre: 'Pablo Medina', edad: 23, posicion: 'Defensa', nacionalidad: 'Argentina' }
-    ]
+    jugadores: buildPlantel('eq-uni')
   },
   {
     id: 'eq-santo-domingo',
     nombre: 'Santo Domingo',
-    jugadores: [
-      { id: 'eq-sd-1', nombre: 'Diego Vega', edad: 24, posicion: 'Delantero', nacionalidad: 'Argentina' },
-      { id: 'eq-sd-2', nombre: 'Facundo Ortiz', edad: 22, posicion: 'Mediocampista', nacionalidad: 'Argentina' },
-      { id: 'eq-sd-3', nombre: 'Ivan Navarro', edad: 26, posicion: 'Defensa', nacionalidad: 'Argentina' }
-    ]
+    jugadores: buildPlantel('eq-sd')
   }
 ];
 
@@ -56,6 +65,25 @@ export async function obtenerEquipos() {
   if (lista.length === 0) {
     lista = seedEquipos;
     await AsyncStorage.setItem(EQUIPOS_KEY, JSON.stringify(lista));
+    return lista;
+  }
+
+  let updated = false;
+  const next = lista.map(team => {
+    const seed = seedEquipos.find(s => s.id === team.id);
+    if (!seed) return team;
+    const actuales = Array.isArray(team.jugadores) ? team.jugadores : [];
+    const normalized = normalizarJugadores(actuales, seed.jugadores);
+    if (normalized !== actuales) {
+      updated = true;
+      return { ...team, jugadores: normalized };
+    }
+    return team;
+  });
+
+  if (updated) {
+    await AsyncStorage.setItem(EQUIPOS_KEY, JSON.stringify(next));
+    return next;
   }
   return lista;
 }
@@ -63,4 +91,19 @@ export async function obtenerEquipos() {
 export async function obtenerEquipoPorId(id) {
   const lista = await obtenerEquipos();
   return lista.find(e => e.id === id);
+}
+
+export async function crearEquipo(nombre) {
+  const lista = await obtenerEquipos();
+  const nombreLimpio = String(nombre || '').trim();
+  if (!nombreLimpio) throw new Error('Nombre requerido');
+  const id = `eq-${Date.now()}`;
+  const nuevo = {
+    id,
+    nombre: nombreLimpio,
+    jugadores: buildPlantel(id)
+  };
+  const next = [...lista, nuevo];
+  await AsyncStorage.setItem(EQUIPOS_KEY, JSON.stringify(next));
+  return nuevo;
 }

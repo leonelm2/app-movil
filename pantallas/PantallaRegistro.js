@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'rea
 import Entrada from '../componentes/Entrada';
 import Boton from '../componentes/Boton';
 import { AuthContext, ROLES } from '../servicios/autenticacion';
+import { limpiarTexto, normalizarCorreo, validarRegistro } from '../utilidades/validaciones';
 
 export default function RegisterScreen({ navigation }) {
   const [nombre, setNombre] = useState('');
@@ -10,28 +11,32 @@ export default function RegisterScreen({ navigation }) {
   const [contraseña, setContraseña] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [rol, setRol] = useState(ROLES.ENTRENADOR);
+  const [cargando, setCargando] = useState(false);
+  const [mensajeError, setMensajeError] = useState('');
   const { registrar } = useContext(AuthContext);
 
   async function handleRegister() {
-    const correoLimpio = String(correo || '').trim();
-    if (!nombre || !correoLimpio || !contraseña || !confirmar) {
-      return Alert.alert('Error', 'Completa todos los campos');
+    const error = validarRegistro({ nombre, correo, contraseña, confirmar });
+    if (error) {
+      setMensajeError(error);
+      return Alert.alert('Error', error);
     }
-    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio);
-    if (!correoValido) {
-      return Alert.alert('Error', 'Correo inválido');
-    }
-    if (contraseña !== confirmar) {
-      return Alert.alert('Error', 'Las contraseñas no coinciden');
-    }
-    if (contraseña.length < 6) {
-      return Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
-    }
+    setMensajeError('');
+    setCargando(true);
     try {
-      await registrar({ nombre, correo: correoLimpio, contraseña, rol });
+      await registrar({
+        nombre: limpiarTexto(nombre),
+        correo: normalizarCorreo(correo),
+        contraseña,
+        rol
+      });
       Alert.alert('Éxito', 'Cuenta creada exitosamente');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      const mensaje = e && e.message ? e.message : 'Error al crear la cuenta';
+      setMensajeError(mensaje);
+      Alert.alert('Error', mensaje);
+    } finally {
+      setCargando(false);
     }
   }
 
@@ -51,6 +56,7 @@ export default function RegisterScreen({ navigation }) {
           value={nombre} 
           onChangeText={setNombre}
           placeholder="Tu nombre"
+          autoCapitalize="words"
         />
         
         <Entrada 
@@ -60,6 +66,8 @@ export default function RegisterScreen({ navigation }) {
           onChangeText={setCorreo} 
           keyboardType="email-address"
           placeholder="tu@correo.com"
+          autoCapitalize="none"
+          autoCorrect={false}
         />
         
         <Entrada 
@@ -69,6 +77,7 @@ export default function RegisterScreen({ navigation }) {
           onChangeText={setContraseña} 
           secureTextEntry
           placeholder="Mínimo 6 caracteres"
+          autoCorrect={false}
         />
         
         <Entrada 
@@ -78,6 +87,7 @@ export default function RegisterScreen({ navigation }) {
           onChangeText={setConfirmar} 
           secureTextEntry
           placeholder="Repite tu contraseña"
+          autoCorrect={false}
         />
 
         <View style={styles.roleSection}>
@@ -103,7 +113,10 @@ export default function RegisterScreen({ navigation }) {
           </View>
         </View>
 
-        <Boton onPress={handleRegister}>Registrarse</Boton>
+        {mensajeError ? <Text style={styles.error}>{mensajeError}</Text> : null}
+        <Boton onPress={handleRegister} disabled={cargando}>
+          {cargando ? 'Creando...' : 'Registrarse'}
+        </Boton>
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
           <Text style={styles.link}>¿Ya tienes cuenta? Inicia sesión</Text>
@@ -163,6 +176,11 @@ const styles = StyleSheet.create({
   },
   roleButtonTextActive: {
     color: '#ff2d2d'
+  },
+  error: {
+    color: '#ff2d2d',
+    textAlign: 'center',
+    marginTop: 12
   },
   link: {
     color: '#ff2d2d',

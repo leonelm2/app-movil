@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { esCorreoValido, normalizarCorreo, limpiarTexto } from '../utilidades/validaciones';
 
 export const AuthContext = createContext();
 
@@ -36,13 +36,16 @@ export function AuthProvider({ children }) {
     const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
     const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
 
-    const correoNormalizado = String(correo || '').trim().toLowerCase();
-    const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoNormalizado);
-    if (!correoValido) {
+    const correoNormalizado = normalizarCorreo(correo);
+    if (!esCorreoValido(correoNormalizado)) {
       throw new Error('Correo inválido');
     }
     if (!contraseña || contraseña.length < 6) {
       throw new Error('La contraseña debe tener al menos 6 caracteres');
+    }
+    const nombreLimpio = limpiarTexto(nombre);
+    if (!nombreLimpio) {
+      throw new Error('Completa todos los campos');
     }
     
     if (usuarios.find(u => u.correo.toLowerCase() === correoNormalizado)) {
@@ -53,7 +56,7 @@ export function AuthProvider({ children }) {
     const esPrimerUsuario = usuarios.length === 0;
     const nuevoUsuario = { 
       id: Date.now().toString(), 
-      nombre, 
+      nombre: nombreLimpio, 
       correo: correoNormalizado, 
       contraseña,
       rol: esPrimerUsuario ? ROLES.ADMIN : rol,
@@ -71,7 +74,7 @@ export function AuthProvider({ children }) {
   async function iniciarSesion({ correo, contraseña }) {
     const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
     const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    const correoNormalizado = String(correo || '').trim().toLowerCase();
+    const correoNormalizado = normalizarCorreo(correo);
     const encontrado = usuarios.find(u => u.correo.toLowerCase() === correoNormalizado);
     
     if (!encontrado) throw new Error('El usuario no existe');
@@ -94,6 +97,9 @@ export function AuthProvider({ children }) {
     const idx = usuarios.findIndex(u => u.correo === correo && u.contraseña === contraseñaActual);
     
     if (idx === -1) throw new Error('Contraseña actual incorrecta');
+    if (!contraseñaNueva || contraseñaNueva.length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres');
+    }
     
     usuarios[idx].contraseña = contraseñaNueva;
     await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
@@ -116,15 +122,25 @@ export function AuthProvider({ children }) {
   async function crearUsuario({ nombre, correo, contraseña, rol }) {
     const usuariosJson = await AsyncStorage.getItem(USUARIOS_KEY);
     const usuarios = usuariosJson ? JSON.parse(usuariosJson) : [];
-    
-    if (usuarios.find(u => u.correo === correo)) {
+    const correoNormalizado = normalizarCorreo(correo);
+    if (!esCorreoValido(correoNormalizado)) {
+      throw new Error('Correo inválido');
+    }
+    if (usuarios.find(u => u.correo === correoNormalizado)) {
       throw new Error('El correo ya está registrado');
+    }
+    const nombreLimpio = limpiarTexto(nombre);
+    if (!nombreLimpio) {
+      throw new Error('Nombre y correo son requeridos');
+    }
+    if (!contraseña || contraseña.length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres');
     }
 
     const nuevoUsuario = { 
       id: Date.now().toString(), 
-      nombre, 
-      correo, 
+      nombre: nombreLimpio, 
+      correo: correoNormalizado, 
       contraseña,
       rol: rol || ROLES.ENTRENADOR,
       activo: true,
@@ -142,8 +158,15 @@ export function AuthProvider({ children }) {
     const idx = usuarios.findIndex(u => u.id === idUsuario);
     
     if (idx === -1) throw new Error('Usuario no encontrado');
-    
-    usuarios[idx] = { ...usuarios[idx], nombre, correo, rol, activo };
+    const correoNormalizado = normalizarCorreo(correo);
+    if (!esCorreoValido(correoNormalizado)) {
+      throw new Error('Correo inválido');
+    }
+    const nombreLimpio = limpiarTexto(nombre);
+    if (!nombreLimpio) {
+      throw new Error('Nombre y correo son requeridos');
+    }
+    usuarios[idx] = { ...usuarios[idx], nombre: nombreLimpio, correo: correoNormalizado, rol, activo };
     await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
     
     // Si es el usuario en sesión, actualizar también

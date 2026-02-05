@@ -38,7 +38,7 @@ export default function ChampionshipsScreen({ navigation }) {
     if (!esAdmin) return;
     setEditingChamp(null);
     setName('');
-    setDisciplineId(disciplines[0]?.id || '');
+    setDisciplineId('futbo');
     setStartDate('');
     setEndDate('');
     setDescription('');
@@ -49,7 +49,7 @@ export default function ChampionshipsScreen({ navigation }) {
     if (!esAdmin) return;
     setEditingChamp(champ);
     setName(champ.nombre);
-    setDisciplineId(champ.disciplinaId);
+    setDisciplineId(champ.disciplinaId || 'futbo');
     setStartDate(champ.fechaInicio);
     setEndDate(champ.fechaFin);
     setDescription(champ.descripcion);
@@ -108,7 +108,15 @@ export default function ChampionshipsScreen({ navigation }) {
     ]);
   }
 
+  const opcionesDisciplina = [
+    { id: 'futbo', label: 'FUTBO' },
+    { id: 'basquet', label: 'BASQUET' },
+    { id: 'voley', label: 'VOLEY' }
+  ];
+
   const getDisciplineName = (disciplineId) => {
+    const opt = opcionesDisciplina.find(d => d.id === disciplineId);
+    if (opt) return opt.label;
     const disc = disciplines.find(d => d.id === disciplineId);
     return disc ? `${disc.icon} ${disc.name}` : 'Desconocido';
   };
@@ -198,7 +206,7 @@ export default function ChampionshipsScreen({ navigation }) {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Disciplina</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.disciplinesList}>
-                {disciplines.map(disc => (
+                {opcionesDisciplina.map(disc => (
                   <TouchableOpacity
                     key={disc.id}
                     style={[
@@ -207,14 +215,14 @@ export default function ChampionshipsScreen({ navigation }) {
                     ]}
                     onPress={() => setDisciplineId(disc.id)}
                   >
-                    <Text style={styles.discButtonText}>{disc.icon} {disc.name}</Text>
+                    <Text style={styles.discButtonText}>{disc.label}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Fecha de inicio (YYYY-MM-DD)</Text>
+              <Text style={styles.label}>Fecha de inicio </Text>
               <TextInput
                 style={styles.input}
                 placeholder="2026-03-01"
@@ -225,7 +233,7 @@ export default function ChampionshipsScreen({ navigation }) {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Fecha de fin (YYYY-MM-DD)</Text>
+              <Text style={styles.label}>Fecha de fin </Text>
               <TextInput
                 style={styles.input}
                 placeholder="2026-12-31"

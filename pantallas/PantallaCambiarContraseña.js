@@ -3,34 +3,50 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import Entrada from '../componentes/Entrada';
 import Boton from '../componentes/Boton';
 import { AuthContext } from '../servicios/autenticacion';
+import { validarCambioContraseña } from '../utilidades/validaciones';
 
 export default function ChangePasswordScreen() {
   const [actual, setActual] = useState('');
   const [nueva, setNueva] = useState('');
   const [confirmar, setConfirmar] = useState('');
+  const [cargando, setCargando] = useState(false);
+  const [mensajeError, setMensajeError] = useState('');
   const { usuario, cambiarContraseña } = useContext(AuthContext);
 
   async function handleChange() {
-    if (!actual || !nueva || !confirmar) return Alert.alert('Error', 'Completa todos los campos');
-    if (nueva !== confirmar) return Alert.alert('Error', 'Las contraseñas no coinciden');
+    const error = validarCambioContraseña({ actual, nueva, confirmar });
+    if (error) {
+      setMensajeError(error);
+      return Alert.alert('Error', error);
+    }
+    setMensajeError('');
+    setCargando(true);
     try {
       await cambiarContraseña({ correo: usuario.correo, contraseñaActual: actual, contraseñaNueva: nueva });
       Alert.alert('Éxito', 'Contraseña cambiada correctamente');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      const mensaje = e && e.message ? e.message : 'Error al cambiar la contraseña';
+      setMensajeError(mensaje);
+      Alert.alert('Error', mensaje);
+    } finally {
+      setCargando(false);
     }
   }
 
   return (
     <View style={styles.container}>
-      <Entrada label="Contraseña actual" icon="lock-closed" value={actual} onChangeText={setActual} secureTextEntry />
-      <Entrada label="Nueva contraseña" icon="lock-closed" value={nueva} onChangeText={setNueva} secureTextEntry />
-      <Entrada label="Confirmar nueva contraseña" icon="lock-closed" value={confirmar} onChangeText={setConfirmar} secureTextEntry />
-      <Boton onPress={handleChange}>Cambiar contraseña</Boton>
+      <Entrada label="Contraseña actual" icon="lock-closed" value={actual} onChangeText={setActual} secureTextEntry autoCorrect={false} />
+      <Entrada label="Nueva contraseña" icon="lock-closed" value={nueva} onChangeText={setNueva} secureTextEntry autoCorrect={false} />
+      <Entrada label="Confirmar nueva contraseña" icon="lock-closed" value={confirmar} onChangeText={setConfirmar} secureTextEntry autoCorrect={false} />
+      {mensajeError ? <Text style={styles.error}>{mensajeError}</Text> : null}
+      <Boton onPress={handleChange} disabled={cargando}>
+        {cargando ? 'Guardando...' : 'Cambiar contraseña'}
+      </Boton>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000', padding: 20 } 
+  container: { flex: 1, backgroundColor: '#000', padding: 20 },
+  error: { color: '#ff2d2d', marginBottom: 12, textAlign: 'center' }
 });

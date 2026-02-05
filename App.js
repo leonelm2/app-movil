@@ -13,8 +13,8 @@ const RESET_KEY = 'RESET_DEMO_2026_02_05';
 
 if (Platform.OS === 'web' && !Alert._webPatched) {
   const buildMessage = (title, message) => {
-    const cleanTitle = title ? String(title) : '';
-    const cleanMessage = message ? String(message) : '';
+    const cleanTitle = title == null ? '' : String(title);
+    const cleanMessage = message == null ? '' : String(message);
     if (cleanTitle && cleanMessage) return `${cleanTitle}\n\n${cleanMessage}`;
     return cleanTitle || cleanMessage;
   };

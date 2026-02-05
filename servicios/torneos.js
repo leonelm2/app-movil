@@ -23,8 +23,8 @@ export async function obtenerTorneos() {
   } else {
     const currentPlayers = JSON.parse(playersJson);
     const nextPlayers = { ...currentPlayers };
-    if (!nextPlayers.t1) nextPlayers.t1 = seed.jugadoresSeed.t1;
-    if (!nextPlayers.t2) nextPlayers.t2 = seed.jugadoresSeed.t2;
+    nextPlayers.t1 = normalizarPlayers(currentPlayers.t1, seed.jugadoresSeed.t1);
+    nextPlayers.t2 = normalizarPlayers(currentPlayers.t2, seed.jugadoresSeed.t2);
     await AsyncStorage.setItem(JUGADORES_KEY, JSON.stringify(nextPlayers));
   }
   return lista;
@@ -87,6 +87,35 @@ function generarFixture(equipos, resultadosIniciales = []) {
   return partidos;
 }
 
+const plantillaBase = [
+  { nombre: 'Lucas Fernandez', posicion: 'Portero' },
+  { nombre: 'Sergio Molina', posicion: 'Portero' },
+  { nombre: 'Nicolas Gomez', posicion: 'Defensa' },
+  { nombre: 'Matias Vega', posicion: 'Defensa' },
+  { nombre: 'Bruno Diaz', posicion: 'Defensa' },
+  { nombre: 'Pablo Rojas', posicion: 'Defensa' },
+  { nombre: 'Franco Silva', posicion: 'Mediocampista' },
+  { nombre: 'Agustin Castro', posicion: 'Mediocampista' },
+  { nombre: 'Diego Torres', posicion: 'Mediocampista' },
+  { nombre: 'Julian Perez', posicion: 'Delantero' },
+  { nombre: 'Emanuel Lopez', posicion: 'Delantero' }
+];
+
+function buildJugadoresEquipo(prefijoId, equipoNombre) {
+  return plantillaBase.map((jugador, index) => ({
+    id: `${prefijoId}-p${index + 1}`,
+    nombre: jugador.nombre,
+    edad: 19 + index,
+    posicion: jugador.posicion,
+    equipo: equipoNombre
+  }));
+}
+
+function normalizarPlayers(actuales = [], base = []) {
+  if (!Array.isArray(actuales) || actuales.length !== base.length) return base;
+  return actuales;
+}
+
 function buildSeedData() {
   const torneoUnoEquipos = [
     { id: 't1-e1', nombre: 'Club San Juan Norte', localidad: 'Capital' },
@@ -107,6 +136,7 @@ function buildSeedData() {
     nombre: 'Liga Sanjuanina Apertura',
     equipos: torneoUnoEquipos.length,
     fecha: '2026-03-15',
+    disciplina: 'futbol',
     estado: 'En curso',
     equiposDetalle: torneoUnoEquipos,
     partidos: generarFixture(torneoUnoEquipos, [
@@ -121,6 +151,7 @@ function buildSeedData() {
     nombre: 'Copa Valle de Tulum',
     equipos: torneoDosEquipos.length,
     fecha: '2026-04-01',
+    disciplina: 'futbol',
     estado: 'En curso',
     equiposDetalle: torneoDosEquipos,
     partidos: generarFixture(torneoDosEquipos, [
@@ -131,24 +162,16 @@ function buildSeedData() {
 
   const jugadoresSeed = {
     t1: [
-      { id: 't1-p1', nombre: 'Matias Molina', edad: 21, posicion: 'Delantero', equipo: 'Club San Juan Norte' },
-      { id: 't1-p2', nombre: 'Julian Perez', edad: 24, posicion: 'Mediocampista', equipo: 'Club San Juan Norte' },
-      { id: 't1-p3', nombre: 'Tomas Ramos', edad: 23, posicion: 'Defensa', equipo: 'Club Rawson' },
-      { id: 't1-p4', nombre: 'Lucas Herrera', edad: 22, posicion: 'Portero', equipo: 'Club Rawson' },
-      { id: 't1-p5', nombre: 'Santiago Diaz', edad: 25, posicion: 'Delantero', equipo: 'Club Rivadavia' },
-      { id: 't1-p6', nombre: 'Franco Vega', edad: 20, posicion: 'Mediocampista', equipo: 'Club Rivadavia' },
-      { id: 't1-p7', nombre: 'Nicolas Ruiz', edad: 24, posicion: 'Defensa', equipo: 'Club Chimbas' },
-      { id: 't1-p8', nombre: 'Gonzalo Castro', edad: 21, posicion: 'Portero', equipo: 'Club Chimbas' }
+      ...buildJugadoresEquipo('t1-e1', 'Club San Juan Norte'),
+      ...buildJugadoresEquipo('t1-e2', 'Club Rawson'),
+      ...buildJugadoresEquipo('t1-e3', 'Club Rivadavia'),
+      ...buildJugadoresEquipo('t1-e4', 'Club Chimbas')
     ],
     t2: [
-      { id: 't2-p1', nombre: 'Agustin Lopez', edad: 22, posicion: 'Delantero', equipo: 'Club Pocito' },
-      { id: 't2-p2', nombre: 'Brian Ortiz', edad: 23, posicion: 'Mediocampista', equipo: 'Club Pocito' },
-      { id: 't2-p3', nombre: 'Facundo Morales', edad: 24, posicion: 'Defensa', equipo: 'Club Caucete' },
-      { id: 't2-p4', nombre: 'Ivan Quiroga', edad: 21, posicion: 'Portero', equipo: 'Club Caucete' },
-      { id: 't2-p5', nombre: 'Emanuel Fernandez', edad: 25, posicion: 'Delantero', equipo: 'Club Albardon' },
-      { id: 't2-p6', nombre: 'Pablo Sanchez', edad: 20, posicion: 'Mediocampista', equipo: 'Club Albardon' },
-      { id: 't2-p7', nombre: 'Diego Navarro', edad: 23, posicion: 'Defensa', equipo: 'Club Zonda' },
-      { id: 't2-p8', nombre: 'Marcos Chavez', edad: 22, posicion: 'Portero', equipo: 'Club Zonda' }
+      ...buildJugadoresEquipo('t2-e1', 'Club Pocito'),
+      ...buildJugadoresEquipo('t2-e2', 'Club Caucete'),
+      ...buildJugadoresEquipo('t2-e3', 'Club Albardon'),
+      ...buildJugadoresEquipo('t2-e4', 'Club Zonda')
     ]
   };
 
